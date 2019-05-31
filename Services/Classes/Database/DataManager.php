@@ -18,13 +18,14 @@ class DataManager
      * DataManager constructor.
      *
      * @param string $database Database name.
-     * @param string $user     Database user.
+     * @param string $user Database user.
      * @param string $password Database password.
-     * @param string $host     Database host.
+     * @param string $host Database host.
      */
     public function __construct(string $database, string $user,
-        string $password, string $host = 'localhost'
-    ) {
+                                string $password, string $host = 'localhost'
+    )
+    {
         try {
             $conn = new PDO(
                 "mysql:host={$host};dbname={$database}", $user, $password
@@ -41,17 +42,18 @@ class DataManager
     /**
      * Select data current database instance.
      *
-     * @param array      $columns  DB column names.
-     * @param string     $table    DB table name.
-     * @param array|null $where    Where statement.
+     * @param array $columns DB column names.
+     * @param string $table DB table name.
+     * @param array|null $where Where statement.
      * @param array|null $order_by Order statement.
-     * @param int|null   $limit    Data limit.
+     * @param int|null $limit Data limit.
      *
      * @return array|null
      */
     public function select(array $columns, string $table, array $where = null,
-        array $order_by = null, int $limit = null
-    ) :? array {
+                           array $order_by = null, int $limit = null
+    ): ?array
+    {
         // Define base select query.
         $query = 'SELECT `' . implode($columns, '`, `') . '` FROM `' . $table . '`';
 
@@ -108,11 +110,11 @@ class DataManager
      * Insert data into database;
      *
      * @param string $table Table name
-     * @param array  $data  Data for inserting;
+     * @param array $data Data for inserting;
      *
      * @return bool Inserting status;
      */
-    public function insert(string $table, array $data) : bool
+    public function insert(string $table, array $data): bool
     {
         $token = str_repeat('?, ', count($data));
         $token = substr($token, 0, -2);
@@ -145,11 +147,12 @@ class DataManager
      *
      * @return bool Updating status
      */
-    public function update(string $table, array $data, array $where) : bool
+    public function update(string $table, array $data, array $where): bool
     {
         $query = 'UPDATE `' . $table .
             '` SET `' . implode(array_keys($data), '` = ?, `') . '` = ?';
 
+        // Add where statement.
         $exec_parameters = array_values($data);
         if (null !== $where) {
             $query .= ' WHERE';
@@ -158,6 +161,45 @@ class DataManager
                 $query .= " {$i['logic_operator']} `{$i['column']}` " .
                     "{$i['operator']} ?";
                 $exec_parameters[] = $i['value'];
+            }
+        }
+
+        $return = false;
+        try {
+            // Prepare query.
+            $sth = $this->_connection
+                ->prepare($query);
+
+            // Execute query with passed parameters.
+            $return = $sth->execute($exec_parameters);
+        } catch (PDOException $e) {
+            echo $e->getCode() . ': ' . $e->getMessage();
+        }
+
+        return $return;
+    }
+
+    /**
+     * Delete data from database;
+     *
+     * @param string $table Table name.
+     * @param array  $where Where statement.
+     *
+     * @return bool
+     */
+    public function delete(string $table, array $where): bool
+    {
+        $query = 'DELETE FROM `' . $table . '` ';
+
+        // Add where statement.
+        $exec_parameters = [];
+        if (null !== $where) {
+            $query .= ' WHERE';
+
+            foreach ($where as $i) {
+                $query .= " {$i['logic_operator']} `{$i['column']}` " .
+                    "{$i['operator']} :{$i['column']}";
+                $exec_parameters[":{$i['column']}"] = $i['value'];
             }
         }
 

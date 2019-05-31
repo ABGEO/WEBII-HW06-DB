@@ -26,6 +26,14 @@ $order = [
     'name' => 'asc',
 ];
 
+// Select data
 $data = $data_manager->select(['name', 'username'], 'users', $where, $order, 5);
 
 var_dump($data);
+
+// Insert data
+$insert_status = $data_manager->insert(
+    'users', ['username' => 'user', 'name' => 'user']
+);
+
+var_dump($insert_status);

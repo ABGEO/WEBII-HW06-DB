@@ -7,17 +7,20 @@ use PDOException;
 
 class DataManager
 {
-    /** @var PDO $_connection */
+    /**
+     * Current PDO object.
+     *
+     * @var PDO $_connection
+     */
     private $_connection;
-
 
     /**
      * DataManager constructor.
      *
-     * @param string $database
-     * @param string $user
-     * @param string $password
-     * @param string $host
+     * @param string $database Database name.
+     * @param string $user     Database user.
+     * @param string $password Database password.
+     * @param string $host     Database host.
      */
     public function __construct(string $database, string $user,
         string $password, string $host = 'localhost'
@@ -42,25 +45,29 @@ class DataManager
      * @param string     $table    DB table name.
      * @param array|null $where    Where statement.
      * @param array|null $order_by Order statement.
-     * @param int|null   $limit Data limit.
+     * @param int|null   $limit    Data limit.
      *
      * @return array|null
      */
     public function select(array $columns, string $table, array $where = null,
         array $order_by = null, int $limit = null
     ) :? array {
+        // Define base select query.
         $query = 'SELECT ' . implode($columns, ', ') . ' FROM ' . $table;
 
+        // Add where statement.
         $exec_parameters = [];
         if (null !== $where) {
             $query .= ' WHERE';
 
             foreach ($where as $i) {
-                $query .= " {$i['logic_operator']} {$i['column']} {$i['operator']} :{$i['column']}";
+                $query .= " {$i['logic_operator']} `{$i['column']}` " .
+                    "{$i['operator']} :{$i['column']}";
                 $exec_parameters[":{$i['column']}"] = $i['value'];
             }
         }
 
+        // Ard ordering statement.
         if (null !== $order_by) {
             $query .= ' ORDER BY';
 
@@ -68,9 +75,11 @@ class DataManager
                 $query .= " {$k} {$v}, ";
             }
 
+            // Cut last ', '.
             $query = substr($query, 0, -2);
         }
 
+        // Add limit value;
         if (null !== $limit) {
             $query .= ' LIMIT ' . $limit;
         }
@@ -79,17 +88,52 @@ class DataManager
 
         $data = null;
         try {
+            // Prepare query.
             $sth = $this->_connection
                 ->prepare($query, array(PDO::ATTR_CURSOR => PDO::CURSOR_FWDONLY));
 
+            // Execute query with passed parameters.
             $sth->execute($exec_parameters);
 
+            // Get all rows.
             $data = $sth->fetchAll();
         } catch (PDOException $e) {
             echo $e->getCode() . ': ' . $e->getMessage();
         }
 
         return $data;
+    }
+
+    /**
+     * Insert data into database;
+     *
+     * @param string $table Table name
+     * @param array  $data  Data for inserting;
+     *
+     * @return bool Inserting status;
+     */
+    public function insert(string $table, array $data) : bool
+    {
+        $token = str_repeat('?, ', count($data));
+        $token = substr($token, 0, -2);
+
+        $query = 'INSERT INTO ' . $table .
+            ' (`' . implode(array_keys($data), '`, `') . '`)' .
+            ' VALUES (' . $token . ');';
+
+        $return = false;
+        try {
+            // Prepare query.
+            $sth = $this->_connection
+                ->prepare($query);
+
+            // Execute query with passed parameters.
+            $return = $sth->execute(array_values($data));
+        } catch (PDOException $e) {
+            echo $e->getCode() . ': ' . $e->getMessage();
+        }
+
+        return $return;
     }
 
     /**

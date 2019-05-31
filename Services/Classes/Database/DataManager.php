@@ -53,7 +53,7 @@ class DataManager
         array $order_by = null, int $limit = null
     ) :? array {
         // Define base select query.
-        $query = 'SELECT ' . implode($columns, ', ') . ' FROM ' . $table;
+        $query = 'SELECT `' . implode($columns, '`, `') . '` FROM `' . $table . '`';
 
         // Add where statement.
         $exec_parameters = [];
@@ -117,8 +117,8 @@ class DataManager
         $token = str_repeat('?, ', count($data));
         $token = substr($token, 0, -2);
 
-        $query = 'INSERT INTO ' . $table .
-            ' (`' . implode(array_keys($data), '`, `') . '`)' .
+        $query = 'INSERT INTO `' . $table .
+            '` (`' . implode(array_keys($data), '`, `') . '`)' .
             ' VALUES (' . $token . ');';
 
         $return = false;
@@ -129,6 +129,46 @@ class DataManager
 
             // Execute query with passed parameters.
             $return = $sth->execute(array_values($data));
+        } catch (PDOException $e) {
+            echo $e->getCode() . ': ' . $e->getMessage();
+        }
+
+        return $return;
+    }
+
+    /**
+     * Update data in database.
+     *
+     * @param string $table Table name.
+     * @param array  $data  Data for updating.
+     * @param array  $where Where statement.
+     *
+     * @return bool Updating status
+     */
+    public function update(string $table, array $data, array $where) : bool
+    {
+        $query = 'UPDATE `' . $table .
+            '` SET `' . implode(array_keys($data), '` = ?, `') . '` = ?';
+
+        $exec_parameters = array_values($data);
+        if (null !== $where) {
+            $query .= ' WHERE';
+
+            foreach ($where as $i) {
+                $query .= " {$i['logic_operator']} `{$i['column']}` " .
+                    "{$i['operator']} ?";
+                $exec_parameters[] = $i['value'];
+            }
+        }
+
+        $return = false;
+        try {
+            // Prepare query.
+            $sth = $this->_connection
+                ->prepare($query);
+
+            // Execute query with passed parameters.
+            $return = $sth->execute($exec_parameters);
         } catch (PDOException $e) {
             echo $e->getCode() . ': ' . $e->getMessage();
         }
